@@ -1,0 +1,9 @@
+[dotenv@17.3.1] injecting env (2) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+Connecting to MongoDB URI: Found
+Server is running on port 6001
+MongoDB connected
+[0mPOST /api/auth/register [32m201[0m 166.655 ms - 368[0m
+(node:47753) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[0mPOST /api/auth/choose-username [32m200[0m 76.691 ms - 393[0m
+[0mPOST /api/auth/login [32m200[0m 163.686 ms - 384[0m
