@@ -2,6 +2,7 @@
 
 To support real-time chat, AI integration, and active caching, this document defines the relationships between all database entities and service modules within the system.
 
+---
 ## Entity-Relationship (ER) Diagram
 
 The ER Diagram outlines how MongoDB collections interface with one another.
@@ -43,6 +44,8 @@ erDiagram
         datetime createdAt
     }
 ```
+
+---
 
 ## UML Class Diagram
 
