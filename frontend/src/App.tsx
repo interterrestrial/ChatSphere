@@ -1,24 +1,41 @@
 import { useState } from 'react';
-import { GoogleLogin } from '@react-oauth/google';
-import axios from 'axios';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import axios, { AxiosError } from 'axios';
 import './App.css';
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [usernameInput, setUsernameInput] = useState('');
-  const [needsUsername, setNeedsUsername] = useState(false);
+interface User {
+  name: string;
+  email?: string;
+  isUsernameSet?: boolean;
+  username?: string;
+}
 
-  const handleGoogleSuccess = async (credentialResponse) => {
+interface AuthResponse {
+  user: User;
+  token: string;
+  message?: string;
+}
+
+interface ErrorResponse {
+  message?: string;
+}
+
+function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [usernameInput, setUsernameInput] = useState<string>('');
+  const [needsUsername, setNeedsUsername] = useState<boolean>(false);
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/google`, {
+      const response = await axios.post<AuthResponse>(`${import.meta.env.VITE_API_URL}/auth/google`, {
         token: credentialResponse.credential,
       });
       
-      const { user: loggedInUser, token, message } = response.data;
+      const { user: loggedInUser, token } = response.data;
       
       // Save token (in a real app, maybe use more secure storage if required)
       localStorage.setItem('token', token);
@@ -28,21 +45,26 @@ function App() {
       if (!loggedInUser.isUsernameSet) {
         setNeedsUsername(true);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.response?.data?.message || 'Authentication failed');
+      if (axios.isAxiosError(err)) {
+        const axiosError = err as AxiosError<ErrorResponse>;
+        setError(axiosError.response?.data?.message || 'Authentication failed');
+      } else {
+        setError('Authentication failed');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSetUsername = async (e) => {
+  const handleSetUsername = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(
+      const response = await axios.post<AuthResponse>(
         `${import.meta.env.VITE_API_URL}/auth/choose-username`,
         { username: usernameInput },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -52,8 +74,13 @@ function App() {
       localStorage.setItem('token', newToken);
       setUser(updatedUser);
       setNeedsUsername(false);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to set username');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const axiosError = err as AxiosError<ErrorResponse>;
+        setError(axiosError.response?.data?.message || 'Failed to set username');
+      } else {
+        setError('Failed to set username');
+      }
     } finally {
       setLoading(false);
     }
