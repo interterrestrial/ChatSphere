@@ -14,7 +14,10 @@ export const getConversations = async (req: AuthRequest, res: Response): Promise
     }
 
     const cacheKey = `conversations:${userId}`;
-    const cachedData = await redisClient.get(cacheKey);
+    let cachedData = null;
+    try {
+      cachedData = await redisClient.get(cacheKey);
+    } catch(e) { /* redis offline */ }
 
     if (cachedData) {
       res.status(200).json(JSON.parse(cachedData));
@@ -27,7 +30,9 @@ export const getConversations = async (req: AuthRequest, res: Response): Promise
       .sort({ updatedAt: -1 });
 
     // Cache conversations for 1 minute
-    await redisClient.setex(cacheKey, 60, JSON.stringify(conversations));
+    try {
+      await redisClient.setex(cacheKey, 60, JSON.stringify(conversations));
+    } catch(e) { /* redis offline */ }
 
     res.status(200).json(conversations);
   } catch (error) {
@@ -58,7 +63,10 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
     }
 
     const cacheKey = `messages:${conversationId}`;
-    const cachedData = await redisClient.get(cacheKey);
+    let cachedData = null;
+    try {
+      cachedData = await redisClient.get(cacheKey);
+    } catch(e) { /* redis offline */ }
 
     if (cachedData) {
       res.status(200).json(JSON.parse(cachedData));
@@ -68,7 +76,9 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
     const messages = await Message.find({ conversationId }).sort({ createdAt: 1 });
 
     // Cache messages for 1 min
-    await redisClient.setex(cacheKey, 60, JSON.stringify(messages));
+    try {
+      await redisClient.setex(cacheKey, 60, JSON.stringify(messages));
+    } catch(e) { /* redis offline */}
 
     res.status(200).json(messages);
   } catch (error) {
