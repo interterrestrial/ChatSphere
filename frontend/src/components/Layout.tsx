@@ -95,6 +95,7 @@ const Layout = () => {
   const { convId } = useParams();
   const dispatch = useDispatch<AppDispatch>();
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { conversations, isLoading } = useSelector((state: RootState) => state.chat);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -114,6 +115,11 @@ const Layout = () => {
         socketService.socket?.on('stopTyping', (data) => {
           dispatch(setTypingUser({ ...data, isTyping: false }));
         });
+
+        socketService.socket?.on('newConversation', (conv) => {
+          dispatch({ type: 'chat/addConversation', payload: conv });
+          socketService.joinConversation(conv._id);
+        });
       }
 
       // Fetch initial data
@@ -124,6 +130,15 @@ const Layout = () => {
       socketService.disconnect();
     };
   }, [dispatch, isAuthenticated]);
+
+  // Auto join all rooms once conversations are loaded
+  useEffect(() => {
+    if (conversations.length > 0) {
+      conversations.forEach(c => {
+         socketService.joinConversation(c._id);
+      });
+    }
+  }, [conversations]);
 
   return (
     <div
@@ -170,12 +185,18 @@ const Layout = () => {
           position: 'relative',
           zIndex: 1,
           minWidth: 0,
+          background: 'rgba(255,255,255,0.015)'
         }}
       >
-        {convId
-          ? <ChatArea convId={convId} />
-          : <WelcomeScreen />
-        }
+        {isLoading ? (
+          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
+             <Sparkles size={24} className="animate-spin" style={{ opacity: 0.5 }} />
+          </div>
+        ) : convId ? (
+          <ChatArea convId={convId} />
+        ) : (
+          <WelcomeScreen />
+        )}
       </div>
     </div>
   );

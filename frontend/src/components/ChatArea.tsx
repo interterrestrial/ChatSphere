@@ -88,7 +88,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
     return () => document.removeEventListener('click', handler);
   }, []);
 
-  if (!conv) return null;
+  if (!conv) {
+    return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>Conversation not found.</div>;
+  }
 
   const participantName = conv.isGroup
     ? null

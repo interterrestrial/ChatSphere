@@ -100,10 +100,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeConvId }) => {
                   }} />
                 )}
               </button>
-              <button className="btn-icon" title="Settings">
+              <button className="btn-icon" onClick={() => alert('Settings menu coming soon!')} title="Settings">
                 <Settings size={17} />
               </button>
-              <button className="btn-icon" onClick={() => dispatch(logout())} title="Logout">
+              <button className="btn-icon" onClick={() => { dispatch(logout()); window.location.href = '/login'; }} title="Logout">
                 <LogOut size={17} />
               </button>
             </div>

@@ -6,6 +6,8 @@ import redisClient from './redis';
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_super_secret_key_here";
 
+export let ioInstance: Server;
+
 export const initSocket = (server: HttpServer) => {
   const io = new Server(server, {
     cors: {
@@ -13,6 +15,8 @@ export const initSocket = (server: HttpServer) => {
       credentials: true,
     },
   });
+  
+  ioInstance = io;
 
   // Socket Authentication Middleware
   io.use((socket, next) => {

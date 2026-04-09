@@ -3,6 +3,7 @@ import { AuthRequest } from '../middlewares/authMiddleware';
 import Conversation from '../models/conversation.model';
 import Message from '../models/message.model';
 import redisClient from '../utils/redis';
+import { ioInstance } from '../utils/socket';
 
 // Fetch all conversations for a user
 export const getConversations = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -121,6 +122,15 @@ export const createConversation = async (req: AuthRequest, res: Response): Promi
 
     const populatedConv = await Conversation.findById(newConv._id)
       .populate('participants', 'name email username avatar _id');
+
+    // Notify other participants they've been added to a conversation
+    if (ioInstance && populatedConv) {
+      for (const p of allParticipants) {
+        if (p.toString() !== userId.toString()) {
+          ioInstance.to(p.toString()).emit('newConversation', populatedConv);
+        }
+      }
+    }
 
     res.status(201).json(populatedConv);
   } catch (error) {

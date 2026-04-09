@@ -127,6 +127,12 @@ const chatSlice = createSlice({
       const conv = state.conversations.find(c => c._id === action.payload);
       if (conv) conv.unreadCount = 0;
     },
+    addConversation: (state, action: PayloadAction<Conversation>) => {
+      const exists = state.conversations.find(c => c._id === action.payload._id);
+      if (!exists) {
+        state.conversations.unshift(action.payload);
+      }
+    },
   },
   extraReducers: (builder) => {
     builder.addCase(fetchConversations.pending, (state) => {
@@ -165,6 +171,7 @@ export const {
   addMessage,
   setTypingUser,
   markConversationRead,
+  addConversation,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
