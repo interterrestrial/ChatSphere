@@ -14,12 +14,7 @@ const GOOGLE_ICON = (
   </svg>
 );
 
-const FEATURES = [
-  { icon: <Zap size={18} />, label: 'Real-time messaging with Socket.io' },
-  { icon: <Sparkles size={18} />, label: 'AI-powered smart replies via Gemini' },
-  { icon: <Shield size={18} />, label: 'Secure Google OAuth + JWT auth' },
-  { icon: <MessageSquare size={18} />, label: 'Group & direct conversations' },
-];
+// Feature info removed per request
 
 const AuthPage = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -125,19 +120,7 @@ const AuthPage = () => {
           Experience lightning-fast messaging, AI-powered insights, and seamless collaboration — all in one beautifully crafted platform.
         </p>
 
-        {/* Feature pills */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {FEATURES.map((f, i) => (
-            <div
-              key={i}
-              className="feature-pill animate-fade-in"
-              style={{ animationDelay: `${i * 0.1}s`, opacity: 0 }}
-            >
-              <span style={{ color: 'var(--accent-primary)' }}>{f.icon}</span>
-              {f.label}
-            </div>
-          ))}
-        </div>
+        {/* Feature pills removed */}
 
         {/* Decorative chat bubble illustration */}
         <div
