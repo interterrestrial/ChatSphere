@@ -46,7 +46,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
   const [showReactionFor, setShowReactionFor] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -60,7 +60,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
     .map(id => conv?.participants.find(p => p._id === id)?.name || 'Someone');
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Add minor timeout to guarantee the DOM actually paints the new messages before grabbing the rect footprint
+    const timer = setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [convMessages, convId, typingNames.length]);
 
   useEffect(() => {
@@ -252,11 +258,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
       )}
 
       {/* ── Messages ── */}
-      <div style={{
-        flex: 1, overflowY: 'auto',
-        padding: '1.25rem 1.5rem',
-        display: 'flex', flexDirection: 'column', gap: '0.6rem',
-      }}>
+      <div 
+        ref={messagesContainerRef}
+        className="hide-scrollbar"
+        style={{
+          flex: 1, overflowY: 'auto',
+          padding: '1.25rem 1.5rem',
+          display: 'flex', flexDirection: 'column', gap: '0.6rem',
+        }}
+      >
         {/* Date divider */}
         <div style={{ textAlign: 'center', margin: '0.5rem 0 1rem' }}>
           <span style={{
@@ -417,8 +427,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
             <TypingIndicator names={typingNames} />
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* ── Gemini Smart Replies ── */}
