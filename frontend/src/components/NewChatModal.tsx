@@ -1,40 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { X, Search, Users, MessageSquare, Plus, UserPlus } from 'lucide-react';
-import { setConversations } from '../store/chatSlice.ts';
-import type { RootState } from '../store/index.ts';
-import type { Conversation } from '../store/chatSlice.ts';
+import { startConversation } from '../store/chatSlice.ts';
+import type { RootState, AppDispatch } from '../store/index.ts';
+import api from '../api/index.ts';
 
 interface NewChatModalProps {
   onClose: () => void;
   onConversationCreated: (convId: string) => void;
 }
 
-const MOCK_CONTACTS = [
-  { _id: 'u2', name: 'Sarah Smith',  avatar: 'https://i.pravatar.cc/150?u=u2', role: 'Developer' },
-  { _id: 'u3', name: 'Alex Johnson', avatar: 'https://i.pravatar.cc/150?u=u3', role: 'Designer' },
-  { _id: 'u4', name: 'Mike Chen',    avatar: 'https://i.pravatar.cc/150?u=u4', role: 'Product Manager' },
-  { _id: 'u5', name: 'Emma Wilson',  avatar: 'https://i.pravatar.cc/150?u=u5', role: 'UX Researcher' },
-  { _id: 'u6', name: 'Ryan Park',    avatar: 'https://i.pravatar.cc/150?u=u6', role: 'DevOps Engineer' },
-  { _id: 'u7', name: 'Priya Nair',   avatar: 'https://i.pravatar.cc/150?u=u7', role: 'Data Scientist' },
-];
-
 type Tab = 'dm' | 'group';
 
+interface SearchedUser {
+  _id: string;
+  name: string;
+  email: string;
+  username: string;
+  avatar: string;
+  role: string;
+}
+
 const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onConversationCreated }) => {
-  const dispatch = useDispatch();
-  const { conversations } = useSelector((state: RootState) => state.chat);
-  const { user } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
+  // Lints fix
 
   const [tab, setTab] = useState<Tab>('dm');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [groupName, setGroupName] = useState('');
+  
+  const [users, setUsers] = useState<SearchedUser[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const filtered = MOCK_CONTACTS.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.role.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/users/search?q=${search}`);
+        setUsers(res.data);
+      } catch(e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const debounce = setTimeout(fetchUsers, 300);
+    return () => clearTimeout(debounce);
+  }, [search]);
 
   const toggleSelect = (id: string) => {
     if (tab === 'dm') {
@@ -46,29 +60,22 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onConversationCrea
     }
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (selectedIds.length === 0) return;
 
-    const selectedContacts = MOCK_CONTACTS.filter(c => selectedIds.includes(c._id));
-    const now = new Date().toISOString();
+    try {
+      const response = await dispatch(startConversation({
+        title: tab === 'group' ? (groupName.trim() || 'New Group') : undefined,
+        isGroup: tab === 'group',
+        participants: selectedIds
+      })).unwrap();
 
-    const newConv: Conversation = {
-      _id: `c_new_${Date.now()}`,
-      title: tab === 'group' ? (groupName.trim() || 'New Group') : null,
-      isGroup: tab === 'group',
-      participants: [
-        { _id: user!._id, name: user!.name, avatar: user!.avatar },
-        ...selectedContacts.map(c => ({ _id: c._id, name: c.name, avatar: c.avatar })),
-      ],
-      lastMessage: null,
-      unreadCount: 0,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    dispatch(setConversations([newConv, ...conversations]));
-    onConversationCreated(newConv._id);
-    onClose();
+      onConversationCreated(response._id);
+      onClose();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to create conversation');
+    }
   };
 
   const canCreate = selectedIds.length > 0 && (tab === 'dm' || (tab === 'group' && selectedIds.length >= 1));
@@ -148,7 +155,7 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onConversationCrea
         {/* Selected badges (group mode) */}
         {tab === 'group' && selectedIds.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
-            {MOCK_CONTACTS.filter(c => selectedIds.includes(c._id)).map(c => (
+            {users.filter(c => selectedIds.includes(c._id)).map(c => (
               <span key={c._id} className="chip active" onClick={() => toggleSelect(c._id)}>
                 <img src={c.avatar} alt="" style={{ width: '16px', height: '16px', borderRadius: '50%' }} />
                 {c.name.split(' ')[0]}
@@ -160,7 +167,9 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onConversationCrea
 
         {/* Contacts list */}
         <div style={{ maxHeight: '260px', overflowY: 'auto', marginBottom: '1.25rem' }}>
-          {filtered.map(contact => {
+          {loading ? (
+             <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '1rem' }}>Searching...</div>
+          ) : users.map(contact => {
             const isSelected = selectedIds.includes(contact._id);
             return (
               <div
@@ -209,7 +218,7 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onConversationCrea
         >
           <UserPlus size={18} />
           {tab === 'dm'
-            ? `Start Chat${selectedIds.length ? ` with ${MOCK_CONTACTS.find(c => c._id === selectedIds[0])?.name.split(' ')[0]}` : ''}`
+            ? `Start Chat${selectedIds.length ? ` with ${users.find(c => c._id === selectedIds[0])?.name.split(' ')[0]}` : ''}`
             : `Create Group${selectedIds.length > 0 ? ` (${selectedIds.length + 1} members)` : ''}`
           }
         </button>

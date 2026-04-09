@@ -86,3 +86,45 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+export const createConversation = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { title, isGroup, participants } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    if (!participants || !Array.isArray(participants) || participants.length === 0) {
+      res.status(400).json({ message: 'At least one participant is required' });
+      return;
+    }
+
+    const allParticipants = [...new Set([userId, ...participants])];
+
+    const newConv = new Conversation({
+      title: isGroup ? title : null,
+      isGroup,
+      participants: allParticipants,
+    });
+
+    await newConv.save();
+
+    // Invalidate conversation cache for all participants
+    for (const p of allParticipants) {
+      try {
+        await redisClient.del(`conversations:${p}`);
+      } catch(e) {}
+    }
+
+    const populatedConv = await Conversation.findById(newConv._id)
+      .populate('participants', 'name email username avatar _id');
+
+    res.status(201).json(populatedConv);
+  } catch (error) {
+    console.error('Error creating conversation:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

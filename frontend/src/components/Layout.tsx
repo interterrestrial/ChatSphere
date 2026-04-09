@@ -6,7 +6,7 @@ import { fetchConversations, addMessage, setTypingUser } from '../store/chatSlic
 import socketService from '../socket';
 import Sidebar from './Sidebar.tsx';
 import ChatArea from './ChatArea.tsx';
-import { Sparkles, MessageSquare, Zap, Shield, Layers } from 'lucide-react';
+import { Sparkles, MessageSquare, Zap, Shield } from 'lucide-react';
 
 const WELCOME_FEATURES = [
   { icon: <MessageSquare size={20} />, title: 'Real-time Messaging', desc: 'Zero-latency bidirectional communication via Socket.io.' },
@@ -87,14 +87,7 @@ const WelcomeScreen = () => (
       ))}
     </div>
 
-    {/* Tech stack pill row */}
-    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', marginTop: '2rem' }}>
-      {['React + TS', 'Socket.io', 'MongoDB', 'Redis', 'Gemini AI', 'Google OAuth'].map(t => (
-        <span key={t} className="feature-pill" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem' }}>
-          <Layers size={12} style={{ color: 'var(--accent-primary)' }} /> {t}
-        </span>
-      ))}
-    </div>
+    {/* Tech stack pill row removed out of UI */}
   </div>
 );
 

@@ -67,8 +67,20 @@ export const fetchMessages = createAsyncThunk(
     try {
       const response = await api.get(`/chat/messages/${conversationId}`);
       return { conversationId, messages: response.data };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch messages');
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch messages');
+    }
+  }
+);
+
+export const startConversation = createAsyncThunk(
+  'chat/startConversation',
+  async (data: { title?: string, isGroup: boolean, participants: string[] }, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/chat/conversations', data);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create conversation');
     }
   }
 );

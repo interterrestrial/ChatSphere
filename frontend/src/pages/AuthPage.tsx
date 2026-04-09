@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { setUser } from '../store/authSlice.ts';
+import { useDispatch, useSelector } from 'react-redux';
+import { useGoogleLogin } from '@react-oauth/google';
+import { loginUser, registerUser, googleAuthUser } from '../store/authSlice.ts';
+import type { AppDispatch, RootState } from '../store/index.ts';
 import { LogIn, UserPlus, Mail, Lock, User, Sparkles, ArrowRight, Zap, Shield, MessageSquare } from 'lucide-react';
 
 const GOOGLE_ICON = (
@@ -20,39 +22,29 @@ const FEATURES = [
 ];
 
 const AuthPage = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
+  const { isLoading, error } = useSelector((state: RootState) => state.auth);
+  
   const [isLogin, setIsLogin] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      dispatch(setUser({
-        _id: 'u1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        username: 'johndoe',
-        avatar: 'https://i.pravatar.cc/150?u=u1',
-      }));
-      setLoading(false);
-    }, 800);
+    if (isLogin) {
+      await dispatch(loginUser({ identifier: email, password }));
+    } else {
+      await dispatch(registerUser({ name, email, password }));
+    }
   };
 
-  const handleGoogleAuth = () => {
-    setGoogleLoading(true);
-    setTimeout(() => {
-      dispatch(setUser({
-        _id: 'u1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        username: 'johndoe',
-        avatar: 'https://i.pravatar.cc/150?u=u1',
-      }));
-      setGoogleLoading(false);
-    }, 1000);
-  };
+  const handleGoogleAuth = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      await dispatch(googleAuthUser({ token: tokenResponse.access_token }));
+    },
+    onError: error => console.error('Google Auth Failed', error)
+  });
 
   return (
     <div
@@ -206,18 +198,21 @@ const AuthPage = () => {
           {/* Google OAuth button */}
           <button
             className="btn-google"
-            onClick={handleGoogleAuth}
-            disabled={googleLoading}
+            onClick={() => handleGoogleAuth()}
+            disabled={isLoading}
             style={{ marginBottom: '1.5rem' }}
           >
-            {googleLoading
-              ? <div style={{ width: 20, height: 20, border: '2px solid #ccc', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-              : GOOGLE_ICON
-            }
+            {GOOGLE_ICON}
             {isLogin ? 'Continue with Google' : 'Sign up with Google'}
           </button>
 
           <div className="divider" style={{ marginBottom: '1.5rem' }}>or</div>
+          
+          {error && (
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '0.8rem', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1rem' }}>
+              {error}
+            </div>
+          )}
 
           {/* Email / Password form */}
           <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -228,6 +223,8 @@ const AuthPage = () => {
                   type="text"
                   className="input-glass"
                   placeholder="Full Name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
                   required
                   style={{ paddingLeft: '2.75rem' }}
                 />
@@ -239,6 +236,8 @@ const AuthPage = () => {
                 type="email"
                 className="input-glass"
                 placeholder="Email address"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 required
                 style={{ paddingLeft: '2.75rem' }}
               />
@@ -249,6 +248,8 @@ const AuthPage = () => {
                 type="password"
                 className="input-glass"
                 placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
                 required
                 style={{ paddingLeft: '2.75rem' }}
               />
@@ -266,9 +267,9 @@ const AuthPage = () => {
               type="submit"
               className="btn-primary"
               style={{ marginTop: '0.25rem', height: '48px', width: '100%', fontSize: '0.95rem' }}
-              disabled={loading}
+              disabled={isLoading}
             >
-              {loading ? (
+              {isLoading ? (
                 <div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
               ) : (
                 <>

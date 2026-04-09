@@ -1,11 +1,8 @@
 import { Request, Response } from 'express';
-import { OAuth2Client } from 'google-auth-library';
 import User from '../models/user.model';
 import { hashPassword, comparePasswords, generateToken } from '../utils/authUtils';
 import { AuthRequest } from '../middlewares/authMiddleware';
-
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "your_google_client_id.apps.googleusercontent.com";
-const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+import axios from 'axios';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -103,19 +100,20 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
             return;
         }
 
-        // Verify Google token
-        const ticket = await client.verifyIdToken({
-            idToken: token,
-            audience: GOOGLE_CLIENT_ID,  
+        // Verify Google token using userInfo API since frontend sends access_token
+        const userInfoRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${token}` }
         });
 
-        const payload = ticket.getPayload();
-        if (!payload) {
+        const payload = userInfoRes.data;
+        if (!payload || !payload.email) {
             res.status(400).json({ message: "Invalid Google token payload." });
             return;
         }
 
-        const { sub: googleId, email, name } = payload;
+        const googleId = payload.sub;
+        const email = payload.email;
+        const name = payload.name;
 
         if (!email || !name) {
              res.status(400).json({ message: "Incomplete user information from Google." });
