@@ -147,6 +147,15 @@ const chatSlice = createSlice({
       const { conversationId, messages } = action.payload;
       state.messages[conversationId] = messages;
     });
+
+    builder.addCase(startConversation.fulfilled, (state, action) => {
+      // Prepend new conversation
+      const exists = state.conversations.find(c => c._id === action.payload._id);
+      if (!exists) {
+        state.conversations.unshift(action.payload);
+      }
+      state.activeConversation = action.payload._id;
+    });
   },
 });
 
