@@ -1,4 +1,9 @@
+import { useEffect } from 'react';
 import { useParams } from 'react-router';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '../store';
+import { fetchConversations, addMessage, setTypingUser } from '../store/chatSlice';
+import socketService from '../socket';
 import Sidebar from './Sidebar.tsx';
 import ChatArea from './ChatArea.tsx';
 import { Sparkles, MessageSquare, Zap, Shield, Layers } from 'lucide-react';
@@ -95,6 +100,37 @@ const WelcomeScreen = () => (
 
 const Layout = () => {
   const { convId } = useParams();
+  const dispatch = useDispatch<AppDispatch>();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Connect to Socket.IO server
+      const token = localStorage.getItem('token');
+      if (token) {
+        socketService.connect(token);
+        
+        socketService.socket?.on('newMessage', (message) => {
+          dispatch(addMessage(message));
+        });
+
+        socketService.socket?.on('typing', (data) => {
+          dispatch(setTypingUser({ ...data, isTyping: true }));
+        });
+
+        socketService.socket?.on('stopTyping', (data) => {
+          dispatch(setTypingUser({ ...data, isTyping: false }));
+        });
+      }
+
+      // Fetch initial data
+      dispatch(fetchConversations());
+    }
+
+    return () => {
+      socketService.disconnect();
+    };
+  }, [dispatch, isAuthenticated]);
 
   return (
     <div

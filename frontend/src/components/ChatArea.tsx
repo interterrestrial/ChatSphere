@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import type { AppDispatch } from '../store';
 import type { RootState } from '../store/index.ts';
-import { addMessage, addReaction, setTypingUser } from '../store/chatSlice.ts';
+import { setTypingUser, fetchMessages } from '../store/chatSlice.ts';
+import socketService from '../socket.ts';
 import {
   Send, Sparkles, MoreVertical, Phone, Video,
   Paperclip, Smile, CheckCheck, Check, X
@@ -34,7 +36,7 @@ const SMART_REPLIES: Record<string, string[]> = {
 };
 
 const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
   const { conversations, messages, typingUsers } = useSelector((state: RootState) => state.chat);
 
@@ -60,6 +62,20 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [convMessages, convId, typingNames.length]);
+
+  useEffect(() => {
+    // Join conversation room in socket
+    socketService.joinConversation(convId);
+    
+    // Fetch messages from DB if not already loaded
+    if (!messages[convId]) {
+      dispatch(fetchMessages(convId));
+    }
+
+    return () => {
+      socketService.leaveConversation(convId);
+    };
+  }, [convId, dispatch, messages]);
 
   // Close pickers on outside click
   useEffect(() => {
@@ -97,17 +113,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
     if (!inputText.trim()) return;
 
     // Stop typing indicator
+    socketService.emitStopTyping(convId);
     dispatch(setTypingUser({ convId, userId: user!._id, isTyping: false }));
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
 
-    dispatch(addMessage({
-      _id: `m_${Date.now()}`,
-      conversationId: convId,
-      senderId: user!._id,
-      content: inputText.trim(),
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    }));
+    // Send via socket
+    socketService.sendMessage(convId, inputText.trim());
+    
+    // Optimistic UI update could be added here, but socket broadcasts back to us too.
     setInputText('');
     inputRef.current?.focus();
   };
@@ -115,9 +128,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(e.target.value);
     // Simulate typing indicator
+    socketService.emitTyping(convId);
     dispatch(setTypingUser({ convId, userId: user!._id, isTyping: true }));
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => {
+      socketService.emitStopTyping(convId);
       dispatch(setTypingUser({ convId, userId: user!._id, isTyping: false }));
     }, 2000);
   };
@@ -128,7 +143,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
   };
 
   const handleReaction = (msgId: string, emoji: string) => {
-    dispatch(addReaction({ convId, msgId, emoji, userId: user!._id }));
+    // Reaction API logic to be added
+    console.log(`Reacted ${emoji} to ${msgId}`);
     setShowReactionFor(null);
   };
 
