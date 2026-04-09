@@ -289,9 +289,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
               key={msg._id}
               style={{
                 display: 'flex',
-                gap: '0.65rem',
+                gap: '0.75rem',
                 alignSelf: isMine ? 'flex-end' : 'flex-start',
-                maxWidth: '72%',
+                maxWidth: '80%',
                 flexDirection: isMine ? 'row-reverse' : 'row',
                 position: 'relative',
                 animation: 'fadeIn 0.2s ease forwards',
@@ -305,7 +305,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
                   <img
                     src={(sender as any)?.avatar || `https://ui-avatars.com/api/?name=${sender?.name || 'U'}&background=6366f1&color=fff`}
                     alt="avatar"
-                    style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+                    style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', display: 'block', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
                   />
                 </div>
               )}
@@ -368,15 +368,17 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
 
                   {/* Message bubble */}
                   <div style={{
-                    background: isMine ? 'var(--accent-gradient)' : 'var(--bg-tertiary)',
+                    background: isMine ? 'var(--accent-gradient)' : 'rgba(255, 255, 255, 0.06)',
                     color: isMine ? 'white' : 'var(--text-primary)',
-                    padding: '0.7rem 1rem',
+                    padding: '0.85rem 1.15rem',
+                    border: isMine ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: isMine
                       ? '1.25rem 1.25rem 0.25rem 1.25rem'
                       : '1.25rem 1.25rem 1.25rem 0.25rem',
-                    boxShadow: isMine ? '0 2px 12px var(--accent-glow)' : 'var(--shadow-sm)',
-                    lineHeight: 1.5,
-                    fontSize: '0.9rem',
+                    boxShadow: isMine ? '0 4px 15px var(--accent-glow)' : '0 2px 10px rgba(0,0,0,0.15)',
+                    lineHeight: 1.6,
+                    fontSize: '0.95rem',
+                    letterSpacing: '0.2px',
                     wordBreak: 'break-word',
                   }}>
                     {msg.content}
@@ -403,8 +405,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
                 )}
 
                 {/* Timestamp + read receipt */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.2rem' }}>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.3rem', opacity: 0.8 }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   {isMine && (
