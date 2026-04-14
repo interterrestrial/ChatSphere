@@ -14,6 +14,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
   const { conversations, messages } = useSelector((state: RootState) => state.chat);
   const { user } = useSelector((state: RootState) => state.auth);
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState('');
   const [showToast, setShowToast] = useState(false);
@@ -27,10 +28,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
     : null;
   const displayTitle = conversation?.title || participantName || 'Conversation';
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom (within container only)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [convMessages.length]);
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [convId, convMessages.length]);
 
   const handleSend = () => {
     setShowToast(true);
@@ -114,7 +118,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
       </div>
 
       {/* ── Messages Area ── */}
-      <div style={{
+      <div ref={messagesContainerRef} style={{
         flex: 1,
         overflowY: 'auto',
         padding: '1.5rem',
