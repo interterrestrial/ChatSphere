@@ -2,7 +2,8 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 const saltRounds = 10;
-const JWT_SECRET = process.env.JWT_SECRET || "your_super_secret_key_here";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error("JWT_SECRET environment variable is required");
 const JWT_EXPIRES_IN = "7d"; // 7 days
 
 export const hashPassword = async (password: string): Promise<string> => {
