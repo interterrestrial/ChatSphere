@@ -19,7 +19,7 @@ const SMART_REPLIES: Record<string, string[]> = {
   default: [
     "Sounds good to me!",
     "I'll check it and get back to you.",
-    "Can we discuss this on a call?",
+    "Can we discuss this on a talk?",
   ],
   question: [
     "Yes, absolutely!",
