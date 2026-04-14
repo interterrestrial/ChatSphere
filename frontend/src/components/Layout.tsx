@@ -1,11 +1,8 @@
-import { useEffect } from 'react';
 import { useParams } from 'react-router';
-import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch, RootState } from '../store';
-import { fetchConversations, addMessage, setTypingUser } from '../store/chatSlice';
-import socketService from '../socket';
-import Sidebar from './Sidebar.tsx';
-import ChatArea from './ChatArea.tsx';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
+import Sidebar from './Sidebar';
+import ChatArea from './ChatArea';
 import { Sparkles, MessageSquare, Zap, Shield } from 'lucide-react';
 
 const WELCOME_FEATURES = [
@@ -48,7 +45,7 @@ const WelcomeScreen = () => (
       Welcome to <span className="text-gradient">ChatSphere</span>
     </h2>
     <p style={{ color: 'var(--text-tertiary)', fontSize: '0.92rem', maxWidth: '360px', lineHeight: 1.65, marginBottom: '2.5rem' }}>
-      Select a conversation from the sidebar or start a new one to begin real-time AI-powered messaging.
+      Select a conversation from the sidebar to preview AI-powered messaging.
     </p>
 
     {/* Feature grid */}
@@ -86,59 +83,12 @@ const WelcomeScreen = () => (
         </div>
       ))}
     </div>
-
-    {/* Tech stack pill row removed out of UI */}
   </div>
 );
 
 const Layout = () => {
   const { convId } = useParams();
-  const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-  const { conversations, isLoading } = useSelector((state: RootState) => state.chat);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      // Connect to Socket.IO server
-      const token = localStorage.getItem('token');
-      if (token) {
-        socketService.connect(token);
-        
-        socketService.socket?.on('newMessage', (message) => {
-          dispatch(addMessage(message));
-        });
-
-        socketService.socket?.on('typing', (data) => {
-          dispatch(setTypingUser({ ...data, isTyping: true }));
-        });
-
-        socketService.socket?.on('stopTyping', (data) => {
-          dispatch(setTypingUser({ ...data, isTyping: false }));
-        });
-
-        socketService.socket?.on('newConversation', (conv) => {
-          dispatch({ type: 'chat/addConversation', payload: conv });
-          socketService.joinConversation(conv._id);
-        });
-      }
-
-      // Fetch initial data
-      dispatch(fetchConversations());
-    }
-
-    return () => {
-      socketService.disconnect();
-    };
-  }, [dispatch, isAuthenticated]);
-
-  // Auto join all rooms once conversations are loaded
-  useEffect(() => {
-    if (conversations.length > 0) {
-      conversations.forEach(c => {
-         socketService.joinConversation(c._id);
-      });
-    }
-  }, [conversations]);
+  const { isLoading } = useSelector((state: RootState) => state.chat);
 
   return (
     <div

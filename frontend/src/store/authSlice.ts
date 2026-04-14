@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import axios from 'axios';
 import api from '../api';
 
 export interface User {
@@ -36,8 +37,11 @@ export const loginUser = createAsyncThunk(
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       return { token, user };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Login failed');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Login failed');
+      }
+      return rejectWithValue('Login failed');
     }
   }
 );
@@ -51,8 +55,11 @@ export const registerUser = createAsyncThunk(
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       return { token, user };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Registration failed');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Registration failed');
+      }
+      return rejectWithValue('Registration failed');
     }
   }
 );
@@ -66,8 +73,11 @@ export const googleAuthUser = createAsyncThunk(
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       return { token, user };
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Google Auth failed');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        return rejectWithValue(err.response?.data?.message || 'Google Auth failed');
+      }
+      return rejectWithValue('Google Auth failed');
     }
   }
 );

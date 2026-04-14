@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useGoogleLogin } from '@react-oauth/google';
 import { loginUser, registerUser, googleAuthUser } from '../store/authSlice.ts';
 import type { AppDispatch, RootState } from '../store/index.ts';
-import { LogIn, UserPlus, Mail, Lock, User, Sparkles, ArrowRight, Zap, Shield, MessageSquare } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, User, Sparkles, ArrowRight } from 'lucide-react';
 
 const GOOGLE_ICON = (
   <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
