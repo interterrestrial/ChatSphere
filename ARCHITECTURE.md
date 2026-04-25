@@ -121,3 +121,39 @@ classDiagram
     GeminiService --> Message : analyzes context
     SocketManager --> Message : broadcasts
 ```
+
+---
+
+## Use Case Diagram
+
+The Use Case Diagram defines the primary actions that end-users can perform within the system and shows how external services like Gemini AI are integrated into these interactions.
+
+```mermaid
+flowchart LR
+    %% Actors
+    ActorUser((User))
+    ActorAI{{Gemini AI}}
+
+    %% System Boundary
+    subgraph ChatSphere [ChatSphere Platform]
+        direction TB
+        UC_Auth([User Registration & Login])
+        UC_Chat([Send & Receive Messages])
+        UC_Manage([Manage Conversations & Groups])
+        UC_Presence([Real-time Presence & Typing])
+        UC_Smart([Request Smart Replies])
+        UC_Summary([Generate Conversation Summary])
+    end
+
+    %% Actor to Use Case relationships
+    ActorUser --> UC_Auth
+    ActorUser --> UC_Manage
+    ActorUser --> UC_Presence
+    ActorUser --> UC_Chat
+    ActorUser --> UC_Smart
+    ActorUser --> UC_Summary
+
+    %% AI to Use Case relationships
+    UC_Smart -.->|API Call| ActorAI
+    UC_Summary -.->|API Call| ActorAI
+```
