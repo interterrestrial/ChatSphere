@@ -1,9 +1,13 @@
 import { useParams } from 'react-router';
-import { useSelector } from 'react-redux';
-import type { RootState } from '../store';
+import { useSelector, useDispatch } from 'react-redux';
+import { useEffect } from 'react';
+import type { RootState, AppDispatch } from '../store';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import { Sparkles, MessageSquare, Zap, Shield } from 'lucide-react';
+import { fetchConversations, fetchUsers } from '../store/chatSlice';
+import { initSocket, disconnectSocket, getSocket } from '../api/socket';
+import { addMessage } from '../store/chatSlice';
 
 const WELCOME_FEATURES = [
   { icon: <MessageSquare size={20} />, title: 'Real-time Messaging', desc: 'Zero-latency bidirectional communication via Socket.io.' },
@@ -88,7 +92,28 @@ const WelcomeScreen = () => (
 
 const Layout = () => {
   const { convId } = useParams();
+  const dispatch = useDispatch<AppDispatch>();
   const { isLoading } = useSelector((state: RootState) => state.chat);
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    if (user) {
+      const socket = initSocket(user._id);
+      dispatch(fetchConversations());
+      dispatch(fetchUsers());
+
+      socket.on('newMessage', (message) => {
+         dispatch(addMessage(message));
+      });
+    }
+    return () => {
+      const socket = getSocket();
+      if (socket) {
+         socket.off('newMessage');
+      }
+      disconnectSocket();
+    };
+  }, [user, dispatch]);
 
   return (
     <div

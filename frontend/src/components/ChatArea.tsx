@@ -1,23 +1,26 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '../store';
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState, AppDispatch } from '../store';
 import {
   Send, Paperclip, Phone, Video, MoreVertical,
-  Users, Check, CheckCheck, Info, Sparkles
+  Users, Check, CheckCheck, Info, Sparkles, Bot
 } from 'lucide-react';
+import { fetchMessages } from '../store/chatSlice';
+import api from '../api';
 
 interface ChatAreaProps {
   convId: string;
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
+  const dispatch = useDispatch<AppDispatch>();
   const { conversations, messages } = useSelector((state: RootState) => state.chat);
   const { user } = useSelector((state: RootState) => state.auth);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState('');
-  const [showToast, setShowToast] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const conversation = conversations.find(c => c._id === convId);
   const convMessages = messages[convId] || [];
@@ -28,7 +31,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
     : null;
   const displayTitle = conversation?.title || participantName || 'Conversation';
 
-  // Auto-scroll to bottom (within container only)
+  // Fetch messages
+  useEffect(() => {
+    if (convId && !messages[convId]) {
+      dispatch(fetchMessages(convId));
+    }
+  }, [convId, messages, dispatch]);
+
+  // Auto-scroll to bottom
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (container) {
@@ -36,10 +46,37 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
     }
   }, [convId, convMessages.length]);
 
-  const handleSend = () => {
-    setShowToast(true);
+  const handleSend = async () => {
+    if (!inputText.trim() || !user) return;
+    const text = inputText;
     setInputText('');
-    setTimeout(() => setShowToast(false), 2500);
+
+    try {
+      await api.post('/chat/messages', {
+        conversationId: convId,
+        content: text
+      });
+    } catch (error) {
+      console.error('Failed to send message', error);
+      setInputText(text);
+    }
+  };
+
+  const handleSmartReply = async () => {
+      const lastMessage = convMessages[convMessages.length - 1];
+      if (!lastMessage) return;
+
+      setIsGenerating(true);
+      try {
+          const res = await api.post('/chat/smart-reply', {
+              messageContent: lastMessage.content
+          });
+          setInputText(res.data.reply);
+      } catch (error) {
+          console.error("Failed to generate smart reply");
+      } finally {
+          setIsGenerating(false);
+      }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -137,8 +174,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
           </div>
         ) : (
           convMessages.map((msg, idx) => {
-            // Use first mock participant as the "current user" for display
-            const isMine = msg.senderId === 'u1';
+            const isMine = msg.senderId === user?._id;
             const senderName = getSenderName(msg.senderId);
 
             // Date separator
@@ -230,32 +266,38 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
         flexShrink: 0,
         position: 'relative',
       }}>
-        {/* Coming soon toast */}
-        {showToast && (
-          <div
+        {/* Smart reply button */}
+        {convMessages.length > 0 && convMessages[convMessages.length - 1].senderId !== user?._id && (
+          <button
+            onClick={handleSmartReply}
+            disabled={isGenerating}
             className="animate-fade-in"
             style={{
               position: 'absolute',
-              top: '-52px',
-              left: '50%',
-              transform: 'translateX(-50%)',
+              top: '-42px',
+              left: '1.5rem',
               background: 'var(--bg-secondary)',
               border: '1px solid var(--border-accent)',
               borderRadius: 'var(--radius-full)',
-              padding: '0.5rem 1.25rem',
-              fontSize: '0.82rem',
+              padding: '0.4rem 1rem',
+              fontSize: '0.8rem',
               color: 'var(--accent-primary)',
               fontWeight: 600,
               boxShadow: 'var(--shadow-glow)',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              whiteSpace: 'nowrap',
+              cursor: isGenerating ? 'wait' : 'pointer',
+              opacity: isGenerating ? 0.7 : 1,
             }}
           >
-            <Sparkles size={14} />
-            Messaging coming soon!
-          </div>
+            {isGenerating ? (
+               <Sparkles size={14} className="animate-spin" />
+            ) : (
+               <Bot size={14} />
+            )}
+            {isGenerating ? 'Generating...' : 'Smart Reply'}
+          </button>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
