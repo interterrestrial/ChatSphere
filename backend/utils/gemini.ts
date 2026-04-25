@@ -31,7 +31,9 @@ export const generateSmartReplies = async (messageContent: string): Promise<stri
         const result = await model.generateContent(
             `You are a helpful chat assistant. Generate exactly 3 short, natural, friendly reply options (each max 12 words) to this chat message. Return ONLY a JSON array of 3 strings, nothing else. Example format: ["reply1", "reply2", "reply3"]\n\nMessage: "${messageContent}"`
         );
-        const text = result.response.text().trim();
+        let text = result.response.text().trim();
+        // Remove markdown formatting if present
+        text = text.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
         // Parse the JSON array
         const parsed = JSON.parse(text);
         if (Array.isArray(parsed) && parsed.length > 0) {
