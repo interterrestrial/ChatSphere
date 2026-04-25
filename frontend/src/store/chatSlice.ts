@@ -58,10 +58,23 @@ export const fetchUsers = createAsyncThunk('chat/fetchUsers', async () => {
   return response.data;
 });
 
+export const searchUsers = createAsyncThunk('chat/searchUsers', async (query: string) => {
+  const response = await api.get(`/chat/users/search?q=${encodeURIComponent(query)}`);
+  return response.data;
+});
+
 export const createConversation = createAsyncThunk('chat/createConversation', async (participantId: string) => {
   const response = await api.post('/chat/conversations', { participantId });
   return response.data;
 });
+
+export const sendMessageThunk = createAsyncThunk(
+  'chat/sendMessage',
+  async ({ conversationId, content }: { conversationId: string; content: string }) => {
+    const response = await api.post('/chat/messages', { conversationId, content });
+    return response.data;
+  }
+);
 
 const chatSlice = createSlice({
   name: 'chat',
@@ -88,18 +101,18 @@ const chatSlice = createSlice({
       if (!state.messages[msg.conversationId]) {
         state.messages[msg.conversationId] = [];
       }
-      // check if message already exists
+      // Deduplicate — don't add if already exists
       const exists = state.messages[msg.conversationId]?.find(m => m._id === msg._id);
       if (!exists) {
-         state.messages[msg.conversationId]?.push(msg);
+        state.messages[msg.conversationId]?.push(msg);
       }
 
-      // update last message in conversation
+      // Update last message in conversation
       const conv = state.conversations.find(c => c._id === msg.conversationId);
       if (conv) {
         conv.lastMessage = msg;
         conv.updatedAt = msg.createdAt;
-        // sort conversations by updatedAt
+        // Sort conversations by updatedAt
         state.conversations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       }
     }

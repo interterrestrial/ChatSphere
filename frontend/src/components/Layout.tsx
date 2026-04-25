@@ -5,14 +5,13 @@ import type { RootState, AppDispatch } from '../store';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import { Sparkles, MessageSquare, Zap, Shield } from 'lucide-react';
-import { fetchConversations, fetchUsers } from '../store/chatSlice';
+import { fetchConversations, addMessage } from '../store/chatSlice';
 import { initSocket, disconnectSocket, getSocket } from '../api/socket';
-import { addMessage } from '../store/chatSlice';
 
 const WELCOME_FEATURES = [
   { icon: <MessageSquare size={20} />, title: 'Real-time Messaging', desc: 'Zero-latency bidirectional communication via Socket.io.' },
   { icon: <Sparkles size={20} />, title: 'AI Smart Replies', desc: 'Gemini-powered suggestions to reply faster and smarter.' },
-  { icon: <Zap size={20} />, title: 'Redis Caching', desc: 'Typing indicators & presence powered by Redis.' },
+  { icon: <Zap size={20} />, title: 'Instant Search', desc: 'Find anyone by username and start chatting instantly.' },
   { icon: <Shield size={20} />, title: 'Secure Auth', desc: 'Google OAuth 2.0 + JWT session management.' },
 ];
 
@@ -49,7 +48,7 @@ const WelcomeScreen = () => (
       Welcome to <span className="text-gradient">ChatSphere</span>
     </h2>
     <p style={{ color: 'var(--text-tertiary)', fontSize: '0.92rem', maxWidth: '360px', lineHeight: 1.65, marginBottom: '2.5rem' }}>
-      Select a conversation from the sidebar to preview AI-powered messaging.
+      Search for users by username and start chatting in real time.
     </p>
 
     {/* Feature grid */}
@@ -100,16 +99,15 @@ const Layout = () => {
     if (user) {
       const socket = initSocket(user._id);
       dispatch(fetchConversations());
-      dispatch(fetchUsers());
 
       socket.on('newMessage', (message) => {
-         dispatch(addMessage(message));
+        dispatch(addMessage(message));
       });
     }
     return () => {
       const socket = getSocket();
       if (socket) {
-         socket.off('newMessage');
+        socket.off('newMessage');
       }
       disconnectSocket();
     };

@@ -1,8 +1,10 @@
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
-import redisClient from "./redis";
 
 let io: Server;
+
+// In-memory active users map (userId -> socketId)
+const activeUsers = new Map<string, string>();
 
 export const initializeSocket = (server: HttpServer) => {
     io = new Server(server, {
@@ -14,15 +16,17 @@ export const initializeSocket = (server: HttpServer) => {
 
     io.on("connection", (socket: Socket) => {
         const userId = socket.handshake.query.userId as string;
+        console.log(`Socket connected: ${socket.id}, userId: ${userId}`);
 
         if (userId) {
-            redisClient.set(`active_user:${userId}`, socket.id);
+            activeUsers.set(userId, socket.id);
             socket.join(userId); // Join personal room for private notifications
             io.emit("userOnline", userId);
         }
 
         socket.on("joinConversation", (conversationId: string) => {
             socket.join(conversationId);
+            console.log(`User ${userId} joined room ${conversationId}`);
         });
 
         socket.on("leaveConversation", (conversationId: string) => {
@@ -38,8 +42,9 @@ export const initializeSocket = (server: HttpServer) => {
         });
 
         socket.on("disconnect", () => {
+            console.log(`Socket disconnected: ${socket.id}, userId: ${userId}`);
             if (userId) {
-                redisClient.del(`active_user:${userId}`);
+                activeUsers.delete(userId);
                 io.emit("userOffline", userId);
             }
         });
@@ -54,3 +59,5 @@ export const getIo = () => {
     }
     return io;
 };
+
+export const getActiveUsers = () => activeUsers;

@@ -8,6 +8,7 @@ export interface User {
   email: string;
   username?: string;
   avatar?: string;
+  isUsernameSet?: boolean;
 }
 
 interface AuthState {

@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useGoogleLogin } from '@react-oauth/google';
 import { loginUser, registerUser, googleAuthUser } from '../store/authSlice.ts';
 import type { AppDispatch, RootState } from '../store/index.ts';
-import { LogIn, UserPlus, Mail, Lock, User, Sparkles, ArrowRight } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, User, Sparkles, ArrowRight, AtSign } from 'lucide-react';
 
 const GOOGLE_ICON = (
   <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
@@ -24,13 +24,14 @@ const AuthPage = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLogin) {
       await dispatch(loginUser({ identifier: email, password }));
     } else {
-      await dispatch(registerUser({ name, email, password }));
+      await dispatch(registerUser({ name, email, password, username }));
     }
   };
 
@@ -209,6 +210,22 @@ const AuthPage = () => {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required
+                  style={{ paddingLeft: '2.75rem' }}
+                />
+              </div>
+            )}
+            {!isLogin && (
+              <div style={{ position: 'relative' }}>
+                <AtSign size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+                <input
+                  type="text"
+                  className="input-glass"
+                  placeholder="Username"
+                  value={username}
+                  onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  required
+                  minLength={3}
+                  maxLength={20}
                   style={{ paddingLeft: '2.75rem' }}
                 />
               </div>

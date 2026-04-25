@@ -6,7 +6,7 @@ import axios from 'axios';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, username } = req.body;
 
         if (!name || !email || !password) {
             res.status(400).json({ message: "Name, email, and password are required" });
@@ -19,22 +19,39 @@ export const register = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
+        // If username provided, check availability
+        let finalUsername: string | undefined;
+        let isUsernameSet = false;
+        if (username && username.trim().length >= 3) {
+            const lowercasedUsername = username.toLowerCase().trim();
+            const existingUsername = await User.findOne({ username: lowercasedUsername });
+            if (existingUsername) {
+                res.status(409).json({ message: "Username is already taken" });
+                return;
+            }
+            finalUsername = lowercasedUsername;
+            isUsernameSet = true;
+        }
+
         const hashedPassword = await hashPassword(password);
 
         const newUser = await User.create({
             name,
             email: email.toLowerCase(),
             password: hashedPassword,
+            username: finalUsername,
+            isUsernameSet,
         });
 
-        const token = generateToken(newUser._id.toString());
+        const token = generateToken(newUser._id.toString(), newUser.username);
         res.status(201).json({ 
-            message: "Registration successful. Please choose a username next.", 
+            message: isUsernameSet ? "Registration successful." : "Registration successful. Please choose a username next.", 
             token,
             user: {
-                id: newUser._id,
+                _id: newUser._id,
                 name: newUser.name,
                 email: newUser.email,
+                username: newUser.username,
                 isUsernameSet: newUser.isUsernameSet,
             }
         });
@@ -78,7 +95,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             message: "Login successful", 
             token,
             user: {
-                id: user._id,
+                _id: user._id,
                 name: user.name,
                 email: user.email,
                 username: user.username,
@@ -149,7 +166,7 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
             message: isNewUser ? "Google registration successful. Please choose a username." : "Google login successful", 
             token: jwtToken,
             user: {
-                id: user._id,
+                _id: user._id,
                 name: user.name,
                 email: user.email,
                 username: user.username,
@@ -209,7 +226,7 @@ export const chooseUsername = async (req: Request, res: Response): Promise<void>
             message: "Username successfully set",
             token,
             user: {
-                id: updatedUser._id,
+                _id: updatedUser._id,
                 name: updatedUser.name,
                 email: updatedUser.email,
                 username: updatedUser.username,

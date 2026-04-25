@@ -1,9 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) throw new Error("JWT_SECRET environment variable is required");
-
 export interface AuthRequest extends Request {
     user?: {
         userId: string;
@@ -12,6 +9,12 @@ export interface AuthRequest extends Request {
 }
 
 export const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+        res.status(500).json({ message: "Server configuration error" });
+        return;
+    }
+
     const authReq = req as AuthRequest;
     const authHeader = authReq.headers.authorization;
 

@@ -2,11 +2,11 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '../store';
 import {
-  Send, Paperclip, Phone, Video, MoreVertical,
-  Users, Check, CheckCheck, Info, Sparkles, Bot
+  Send, Phone, Video, MoreVertical,
+  Users, Check, CheckCheck, Info, Sparkles
 } from 'lucide-react';
-import { fetchMessages } from '../store/chatSlice';
-import api from '../api';
+import { fetchMessages, sendMessageThunk } from '../store/chatSlice';
+import { getSocket } from '../api/socket';
 
 interface ChatAreaProps {
   convId: string;
@@ -20,7 +20,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   const conversation = conversations.find(c => c._id === convId);
   const convMessages = messages[convId] || [];
@@ -29,14 +29,30 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
   const participantName = conversation && !conversation.isGroup
     ? conversation.participants.find(p => p._id !== user?._id)?.name
     : null;
+  const participantUsername = conversation && !conversation.isGroup
+    ? conversation.participants.find(p => p._id !== user?._id)?.username
+    : null;
   const displayTitle = conversation?.title || participantName || 'Conversation';
 
-  // Fetch messages
+  // Join socket room for this conversation
   useEffect(() => {
-    if (convId && !messages[convId]) {
+    const socket = getSocket();
+    if (socket && convId) {
+      socket.emit('joinConversation', convId);
+    }
+    return () => {
+      if (socket && convId) {
+        socket.emit('leaveConversation', convId);
+      }
+    };
+  }, [convId]);
+
+  // Fetch messages when opening a conversation
+  useEffect(() => {
+    if (convId) {
       dispatch(fetchMessages(convId));
     }
-  }, [convId, messages, dispatch]);
+  }, [convId, dispatch]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -47,36 +63,19 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
   }, [convId, convMessages.length]);
 
   const handleSend = async () => {
-    if (!inputText.trim() || !user) return;
+    if (!inputText.trim() || !user || isSending) return;
     const text = inputText;
     setInputText('');
+    setIsSending(true);
 
     try {
-      await api.post('/chat/messages', {
-        conversationId: convId,
-        content: text
-      });
+      await dispatch(sendMessageThunk({ conversationId: convId, content: text })).unwrap();
     } catch (error) {
       console.error('Failed to send message', error);
       setInputText(text);
+    } finally {
+      setIsSending(false);
     }
-  };
-
-  const handleSmartReply = async () => {
-      const lastMessage = convMessages[convMessages.length - 1];
-      if (!lastMessage) return;
-
-      setIsGenerating(true);
-      try {
-          const res = await api.post('/chat/smart-reply', {
-              messageContent: lastMessage.content
-          });
-          setInputText(res.data.reply);
-      } catch (error) {
-          console.error("Failed to generate smart reply");
-      } finally {
-          setIsGenerating(false);
-      }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -140,7 +139,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
             <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
               {conversation.isGroup
                 ? `${conversation.participants.length} members`
-                : 'Online'}
+                : participantUsername ? `@${participantUsername}` : 'Online'}
             </p>
           </div>
         </div>
@@ -170,7 +169,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
             gap: '0.75rem',
           }}>
             <Sparkles size={32} style={{ opacity: 0.4 }} />
-            <p style={{ fontSize: '0.92rem' }}>No messages yet</p>
+            <p style={{ fontSize: '0.92rem' }}>No messages yet — say hello! 👋</p>
           </div>
         ) : (
           convMessages.map((msg, idx) => {
@@ -266,43 +265,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
         flexShrink: 0,
         position: 'relative',
       }}>
-        {/* Smart reply button */}
-        {convMessages.length > 0 && convMessages[convMessages.length - 1].senderId !== user?._id && (
-          <button
-            onClick={handleSmartReply}
-            disabled={isGenerating}
-            className="animate-fade-in"
-            style={{
-              position: 'absolute',
-              top: '-42px',
-              left: '1.5rem',
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border-accent)',
-              borderRadius: 'var(--radius-full)',
-              padding: '0.4rem 1rem',
-              fontSize: '0.8rem',
-              color: 'var(--accent-primary)',
-              fontWeight: 600,
-              boxShadow: 'var(--shadow-glow)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              cursor: isGenerating ? 'wait' : 'pointer',
-              opacity: isGenerating ? 0.7 : 1,
-            }}
-          >
-            {isGenerating ? (
-               <Sparkles size={14} className="animate-spin" />
-            ) : (
-               <Bot size={14} />
-            )}
-            {isGenerating ? 'Generating...' : 'Smart Reply'}
-          </button>
-        )}
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <button className="btn-icon" title="Attach file"><Paperclip size={18} /></button>
-
           <div style={{ flex: 1, position: 'relative' }}>
             <input
               type="text"
@@ -323,7 +286,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
               borderRadius: 'var(--radius-full)', flexShrink: 0,
               opacity: inputText.trim() ? 1 : 0.5,
             }}
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || isSending}
           >
             <Send size={18} style={{ transform: 'translateX(1px)' }} />
           </button>
