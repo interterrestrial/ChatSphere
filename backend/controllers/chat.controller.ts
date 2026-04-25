@@ -4,6 +4,7 @@ import Conversation from "../models/conversation.model";
 import Message from "../models/message.model";
 import User from "../models/user.model";
 import { getIo } from "../utils/socket";
+import { generateSmartReplies, summarizeConversation } from "../utils/gemini";
 
 export const getConversations = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -52,10 +53,8 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
         });
 
         const io = getIo();
-        // Emit to all users in the conversation room
         io.to(conversationId).emit("newMessage", message);
 
-        // Also emit to participant personal rooms so sidebar updates even if they haven't joined the conv room
         const conversation = await Conversation.findById(conversationId);
         if (conversation) {
             conversation.participants.forEach((participantId: any) => {
@@ -82,7 +81,6 @@ export const createConversation = async (req: AuthRequest, res: Response): Promi
             return;
         }
 
-        // Check if a DM conversation already exists between these two users
         let conversation = await Conversation.findOne({
             isGroup: false,
             participants: { $all: [userId, participantId], $size: 2 }
@@ -138,5 +136,74 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
         res.status(200).json(users);
     } catch (error: any) {
         res.status(500).json({ message: "Failed to get users", error: error.message });
+    }
+};
+
+// ── Gemini AI Endpoints ──
+
+export const getSmartReplies = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { messageContent } = req.body;
+
+        if (!messageContent || typeof messageContent !== 'string') {
+            res.status(400).json({ message: "messageContent is required" });
+            return;
+        }
+
+        if (!process.env.GEMINI_API_KEY) {
+            res.status(503).json({ message: "Gemini API key not configured" });
+            return;
+        }
+
+        const replies = await generateSmartReplies(messageContent);
+        res.status(200).json({ replies });
+    } catch (error: any) {
+        res.status(500).json({ message: "Failed to generate smart replies", error: error.message });
+    }
+};
+
+export const getConversationSummary = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { conversationId } = req.params;
+
+        if (!conversationId) {
+            res.status(400).json({ message: "conversationId is required" });
+            return;
+        }
+
+        if (!process.env.GEMINI_API_KEY) {
+            res.status(503).json({ message: "Gemini API key not configured" });
+            return;
+        }
+
+        const conversation = await Conversation.findById(conversationId)
+            .populate("participants", "_id name");
+
+        if (!conversation) {
+            res.status(404).json({ message: "Conversation not found" });
+            return;
+        }
+
+        const messages = await Message.find({ conversationId }).sort({ createdAt: 1 });
+
+        if (messages.length === 0) {
+            res.status(200).json({ summary: "No messages to summarize." });
+            return;
+        }
+
+        const participantMap = new Map<string, string>();
+        (conversation.participants as any[]).forEach((p: any) => {
+            participantMap.set(p._id.toString(), p.name);
+        });
+
+        const formattedMessages = messages.map(m => ({
+            sender: participantMap.get(m.senderId.toString()) || "Unknown",
+            content: m.content,
+        }));
+
+        const summary = await summarizeConversation(formattedMessages);
+        res.status(200).json({ summary });
+    } catch (error: any) {
+        res.status(500).json({ message: "Failed to summarize conversation", error: error.message });
     }
 };

@@ -3,10 +3,11 @@ import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '../store';
 import {
   Send, Phone, Video, MoreVertical,
-  Users, Check, CheckCheck, Info, Sparkles
+  Users, Check, CheckCheck, Info, Sparkles, Bot, FileText, X
 } from 'lucide-react';
 import { fetchMessages, sendMessageThunk } from '../store/chatSlice';
 import { getSocket } from '../api/socket';
+import api from '../api';
 
 interface ChatAreaProps {
   convId: string;
@@ -21,6 +22,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Gemini state
+  const [smartReplies, setSmartReplies] = useState<string[]>([]);
+  const [isLoadingReplies, setIsLoadingReplies] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
   const conversation = conversations.find(c => c._id === convId);
   const convMessages = messages[convId] || [];
@@ -62,11 +70,62 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
     }
   }, [convId, convMessages.length]);
 
+  // Reset Gemini state when conversation changes
+  useEffect(() => {
+    setSmartReplies([]);
+    setSummary(null);
+    setShowSummary(false);
+  }, [convId]);
+
+  // Auto-generate smart replies when the last message is from the other person
+  useEffect(() => {
+    if (convMessages.length === 0) return;
+    const lastMsg = convMessages[convMessages.length - 1];
+    if (lastMsg.senderId !== user?._id) {
+      fetchSmartReplies(lastMsg.content);
+    } else {
+      setSmartReplies([]);
+    }
+  }, [convMessages.length, convId]);
+
+  const fetchSmartReplies = async (content: string) => {
+    setIsLoadingReplies(true);
+    setSmartReplies([]);
+    try {
+      const res = await api.post('/chat/smart-replies', { messageContent: content });
+      if (res.data.replies && res.data.replies.length > 0) {
+        setSmartReplies(res.data.replies);
+      }
+    } catch (error) {
+      // Silently fail — smart replies are optional
+      console.error('Smart replies unavailable:', error);
+    } finally {
+      setIsLoadingReplies(false);
+    }
+  };
+
+  const fetchSummary = async () => {
+    setIsLoadingSummary(true);
+    setSummary(null);
+    try {
+      const res = await api.get(`/chat/summary/${convId}`);
+      setSummary(res.data.summary);
+      setShowSummary(true);
+    } catch (error) {
+      console.error('Summary unavailable:', error);
+      setSummary('Failed to generate summary.');
+      setShowSummary(true);
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
+
   const handleSend = async () => {
     if (!inputText.trim() || !user || isSending) return;
     const text = inputText;
     setInputText('');
     setIsSending(true);
+    setSmartReplies([]);
 
     try {
       await dispatch(sendMessageThunk({ conversationId: convId, content: text })).unwrap();
@@ -76,6 +135,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleSmartReplyClick = (reply: string) => {
+    setInputText(reply);
+    setSmartReplies([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -146,12 +210,60 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
 
         {/* Header actions */}
         <div style={{ display: 'flex', gap: '0.15rem' }}>
+          {/* AI Summarize button */}
+          <button
+            className="btn-icon"
+            title="AI Summary"
+            onClick={fetchSummary}
+            disabled={isLoadingSummary || convMessages.length === 0}
+            style={{ color: isLoadingSummary ? 'var(--accent-primary)' : undefined }}
+          >
+            {isLoadingSummary ? (
+              <Sparkles size={17} className="animate-spin" />
+            ) : (
+              <FileText size={17} />
+            )}
+          </button>
           <button className="btn-icon" title="Voice call"><Phone size={17} /></button>
           <button className="btn-icon" title="Video call"><Video size={17} /></button>
           <button className="btn-icon" title="Info"><Info size={17} /></button>
           <button className="btn-icon" title="More"><MoreVertical size={17} /></button>
         </div>
       </div>
+
+      {/* ── AI Summary Panel ── */}
+      {showSummary && summary && (
+        <div
+          className="animate-fade-in"
+          style={{
+            padding: '1rem 1.5rem',
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.06))',
+            borderBottom: '1px solid var(--border-accent)',
+            flexShrink: 0,
+            position: 'relative',
+          }}
+        >
+          <button
+            onClick={() => setShowSummary(false)}
+            className="btn-icon"
+            style={{ position: 'absolute', top: '0.5rem', right: '0.75rem' }}
+          >
+            <X size={14} />
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <Sparkles size={14} style={{ color: 'var(--accent-primary)' }} />
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              AI Summary
+            </span>
+          </div>
+          <p style={{
+            margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)',
+            lineHeight: 1.65, whiteSpace: 'pre-line',
+          }}>
+            {summary}
+          </p>
+        </div>
+      )}
 
       {/* ── Messages Area ── */}
       <div ref={messagesContainerRef} style={{
@@ -265,6 +377,61 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
         flexShrink: 0,
         position: 'relative',
       }}>
+        {/* Smart Reply Chips */}
+        {(smartReplies.length > 0 || isLoadingReplies) && (
+          <div
+            className="animate-fade-in"
+            style={{
+              display: 'flex',
+              gap: '0.5rem',
+              marginBottom: '0.75rem',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+            }}
+          >
+            <Bot size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+            {isLoadingReplies ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Sparkles size={13} className="animate-spin" style={{ color: 'var(--accent-primary)' }} />
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>Thinking…</span>
+              </div>
+            ) : (
+              smartReplies.map((reply, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSmartReplyClick(reply)}
+                  className="animate-fade-in"
+                  style={{
+                    background: 'rgba(99,102,241,0.1)',
+                    border: '1px solid rgba(99,102,241,0.25)',
+                    borderRadius: 'var(--radius-full)',
+                    padding: '0.35rem 0.85rem',
+                    fontSize: '0.8rem',
+                    color: 'var(--accent-primary)',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)',
+                    animationDelay: `${i * 0.08}s`,
+                    opacity: 0,
+                    animationFillMode: 'forwards',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(99,102,241,0.2)';
+                    e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(99,102,241,0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)';
+                  }}
+                >
+                  {reply}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <input
