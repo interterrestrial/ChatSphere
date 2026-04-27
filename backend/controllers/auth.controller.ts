@@ -110,27 +110,25 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const googleAuth = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { token } = req.body; // Google ID token from the frontend
+        const { token } = req.body; // Google access token from the frontend
 
         if (!token) {
             res.status(400).json({ message: "Google token is required" });
             return;
         }
 
-        // Verify Google token using userInfo API since frontend sends access_token
-        const userInfoRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+        // Fetch user profile using access token
+        const googleResponse = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
             headers: { Authorization: `Bearer ${token}` }
         });
 
-        const payload = userInfoRes.data;
-        if (!payload || !payload.email) {
+        const payload = googleResponse.data;
+        if (!payload) {
             res.status(400).json({ message: "Invalid Google token payload." });
             return;
         }
 
-        const googleId = payload.sub;
-        const email = payload.email;
-        const name = payload.name;
+        const { sub: googleId, email, name } = payload;
 
         if (!email || !name) {
              res.status(400).json({ message: "Incomplete user information from Google." });
