@@ -7,7 +7,8 @@ import chatRoutes from "./routes/chat.routes";
 
 const app = express();
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-app.use(cors({ origin: CLIENT_URL, credentials: true }));
+const allowedOrigins = [CLIENT_URL, "https://chat-sphere-mauve.vercel.app"];
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(morgan("dev"));
 
 
