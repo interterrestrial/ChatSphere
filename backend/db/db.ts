@@ -9,7 +9,7 @@ const connectDB = () => {
 
     console.log("Attempting MongoDB connection...");
     
-    mongoose.connect(uri)
+    mongoose.connect(uri, { family: 4 })
         .then(() => console.log("MongoDB connected successfully!"))
         .catch((err) => console.log("DB connection error:", err.message));
 }
