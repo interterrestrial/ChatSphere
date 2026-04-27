@@ -111,9 +111,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ convId }) => {
       const res = await api.get(`/chat/summary/${convId}`);
       setSummary(res.data.summary);
       setShowSummary(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Summary unavailable:', error);
-      setSummary('Failed to generate summary.');
+      const errMsg = error.response?.data?.error || error.response?.data?.message || 'Failed to generate summary.';
+      setSummary(errMsg);
       setShowSummary(true);
     } finally {
       setIsLoadingSummary(false);
