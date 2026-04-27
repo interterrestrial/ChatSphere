@@ -5,7 +5,9 @@ let socket: Socket | null = null;
 export const initSocket = (userId: string) => {
   if (socket) return socket;
   
-  socket = io('http://localhost:6001', {
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:6001';
+
+  socket = io(API_BASE_URL, {
     query: { userId },
     withCredentials: true,
   });
